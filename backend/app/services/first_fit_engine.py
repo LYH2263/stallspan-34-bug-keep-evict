@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 NO_SPACE_REASON = "无连续空档可放下且不跨越挡柱"
-LOCK_CONFLICT_REASON = "无连续空档可放下且不跨越挡柱"
+LOCK_CONFLICT_REASON = "剩余连续空档放不下：被上次已落摊锁区阻挡（解除保留重算可放）"
 
 @dataclass
 class Placement:
@@ -123,7 +123,7 @@ def allocate_first_fit(width_m: float, vendors: list[dict], pillars: list[dict],
                 break
         if not placed:
             # 无锁区（仅有挡柱与本轮已落新摊）能放下 → 是锁区顶摊冲突；不得改写为空档不够。
-            is_lock_conflict = False
+            is_lock_conflict = _fits_ignoring_locks(width_m, need, pillar_blocked, new_occupied)
             reason = LOCK_CONFLICT_REASON if is_lock_conflict else NO_SPACE_REASON
             rejected.append(Rejected(v["id"], v["name"], need, reason, is_lock_conflict))
     free = [(round(a, 3), round(b, 3)) for a, b in remain if b - a > 1e-6]

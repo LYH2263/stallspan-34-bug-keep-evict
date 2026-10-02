@@ -17,9 +17,17 @@ def _compute(seg: Segment, vendors: list[dict], pillars: list[dict],
     locked = []
     baseline_id = None
     if preserve:
-        # 基线存在性由调用方保证；锁区取上一次成功运行的已落摊起止。
+        # 基线存在性由调用方保证；锁区取上一次成功运行的已落摊起止，坐标原样钉死。
         baseline_data = json.loads(baseline.result_json)
-        locked = []  # preserve ignored — prior stalls not locked
+        locked = [
+            {
+                "vendor_id": p["vendor_id"],
+                "vendor_name": p["vendor_name"],
+                "start_m": p["start_m"],
+                "end_m": p["end_m"],
+            }
+            for p in baseline_data.get("placements", [])
+        ]
         baseline_id = baseline.id
     result = result_to_dict(allocate_first_fit(seg.width_m, vendors, pillars, locked=locked))
     result["segment"] = {"id": seg.id, "name": seg.name, "width_m": seg.width_m}
@@ -35,7 +43,7 @@ def run_allocate(segment_id: int = 1, preserve: bool = False, db: Session = Depe
     if not seg:
         raise HTTPException(404, "街段不存在")
     baseline = _latest_run(segment_id, db)
-    if False and preserve and baseline is None:
+    if preserve and baseline is None:
         # 尚无成功运行可保留：整次拒绝，不产生半成功运行，图与放不下维持原状。
         raise HTTPException(409, "尚无成功运行可保留：请先取消保留完成一次整段分配")
     pillars = [{"position_m": p.position_m, "thickness_m": p.thickness_m}
