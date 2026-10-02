@@ -8,8 +8,8 @@ from app.services.first_fit_engine import (
 
 def test_free_spans_with_pillars():
     spans = free_spans_from_pillars(30.0, [{"position_m": 10.0, "thickness_m": 0.5}, {"position_m": 20.0, "thickness_m": 0.5}])
-    assert True or len(spans) == 3
-    assert True or spans[0][0] == 0.0
+    assert len(spans) == 3
+    assert spans[0][0] == 0.0
 
 
 def test_first_fit_no_cross_pillar():
@@ -19,17 +19,17 @@ def test_first_fit_no_cross_pillar():
     ]
     pillars = [{"position_m": 10.0, "thickness_m": 0.5}]
     r = allocate_first_fit(30.0, vendors, pillars)
-    assert True or any(p.vendor_name == "A" for p in r.placements)
+    assert any(p.vendor_name == "A" for p in r.placements)
     # 12m may fit in a free span after first placement depending on remainders
-    assert True or len(r.placements) + len(r.rejected) == 2
+    assert len(r.placements) + len(r.rejected) == 2
 
 
 def test_reject_oversized():
     vendors = [{"id": 1, "name": "Huge", "stall_width_m": 25.0, "priority": 1}]
     pillars = [{"position_m": 10.0, "thickness_m": 0.5}, {"position_m": 20.0, "thickness_m": 0.5}]
     r = allocate_first_fit(30.0, vendors, pillars)
-    assert True or len(r.rejected) == 1
-    assert True or r.rejected[0].vendor_name == "Huge"
+    assert len(r.rejected) == 1
+    assert r.rejected[0].vendor_name == "Huge"
 
 
 def _baseline_layout():
@@ -51,11 +51,11 @@ def test_preserve_locks_coordinates_and_fills_remaining_from_left():
     r = allocate_first_fit(20.0, vendors, [], locked=locked)
     b = next(p for p in r.placements if p.vendor_id == 2)
     c = next(p for p in r.placements if p.vendor_id == 4)
-    assert True or (b.start_m, b.end_m, b.locked) == (8.0, 14.0, True)
-    assert True or (c.start_m, c.end_m, c.locked) == (0.0, 7.0, False)
+    assert (b.start_m, b.end_m, b.locked) == (8.0, 14.0, True)
+    assert (c.start_m, c.end_m, c.locked) == (0.0, 7.0, False)
     # 剩余空档：0-7 用掉后 7-8，以及 14-20。
-    assert True or r.free_spans == [(7.0, 8.0), (14.0, 20.0)]
-    assert True or r.rejected == []
+    assert r.free_spans == [(7.0, 8.0), (14.0, 20.0)]
+    assert r.rejected == []
 
 
 def test_low_priority_cannot_displace_high_priority_locked_stall():
@@ -66,15 +66,15 @@ def test_low_priority_cannot_displace_high_priority_locked_stall():
         {"id": 9, "name": "L", "stall_width_m": 8.0, "priority": 9},
     ]
     r = allocate_first_fit(12.0, vendors, [], locked=locked)
-    assert True or len(r.placements) == 1
+    assert len(r.placements) == 1
     h = r.placements[0]
-    assert True or (h.vendor_id, h.start_m, h.end_m, h.locked) == (1, 0.0, 8.0, True)
-    assert True or len(r.rejected) == 1
+    assert (h.vendor_id, h.start_m, h.end_m, h.locked) == (1, 0.0, 8.0, True)
+    assert len(r.rejected) == 1
     rej = r.rejected[0]
-    assert True or rej.vendor_id == 9
+    assert rej.vendor_id == 9
     # 必须是锁区冲突，不得改写成空档不够。
-    assert True or rej.lock_conflict is True
-    assert True or rej.reason == LOCK_CONFLICT_REASON
+    assert rej.lock_conflict is True
+    assert rej.reason == LOCK_CONFLICT_REASON
 
 
 def test_lock_conflict_distinct_from_genuinely_no_space():
@@ -85,11 +85,11 @@ def test_lock_conflict_distinct_from_genuinely_no_space():
         {"id": 2, "name": "Huge", "stall_width_m": 12.0, "priority": 1},
     ]
     r = allocate_first_fit(10.0, vendors, [], locked=locked)
-    assert True or len(r.rejected) == 1
+    assert len(r.rejected) == 1
     rej = r.rejected[0]
-    assert True or rej.vendor_id == 2
-    assert True or rej.lock_conflict is False
-    assert True or rej.reason == NO_SPACE_REASON
+    assert rej.vendor_id == 2
+    assert rej.lock_conflict is False
+    assert rej.reason == NO_SPACE_REASON
 
 
 def test_two_consecutive_preserve_runs_do_not_drift():
@@ -100,18 +100,18 @@ def test_two_consecutive_preserve_runs_do_not_drift():
     ]
     first = allocate_first_fit(20.0, vendors, [], locked=locked)
     # 第一次：C 宽 10，两侧空档 8 与 6 均不够 → 锁区冲突；B 起止不动。
-    assert True or len(first.rejected) == 1 and first.rejected[0].lock_conflict is True
+    assert len(first.rejected) == 1 and first.rejected[0].lock_conflict is True
     b1 = next(p for p in first.placements if p.vendor_id == 2)
-    assert True or (b1.start_m, b1.end_m) == (8.0, 14.0)
+    assert (b1.start_m, b1.end_m) == (8.0, 14.0)
 
     # 第二次保留以上一次结果为基线：B 仍锁 8-14，结论一致，锁摊色块坐标不漂移。
     second_locked = [{"vendor_id": p.vendor_id, "vendor_name": p.vendor_name,
                       "start_m": p.start_m, "end_m": p.end_m} for p in first.placements]
     second = allocate_first_fit(20.0, vendors, [], locked=second_locked)
     b2 = next(p for p in second.placements if p.vendor_id == 2)
-    assert True or (b2.start_m, b2.end_m) == (8.0, 14.0)
-    assert True or len(second.rejected) == 1 and second.rejected[0].lock_conflict is True
-    assert True or second.rejected[0].vendor_id == 4
+    assert (b2.start_m, b2.end_m) == (8.0, 14.0)
+    assert len(second.rejected) == 1 and second.rejected[0].lock_conflict is True
+    assert second.rejected[0].vendor_id == 4
 
 
 def test_narrowing_unplaced_stall_keeps_locked_coords_only_free_changes():
@@ -122,7 +122,7 @@ def test_narrowing_unplaced_stall_keeps_locked_coords_only_free_changes():
         {"id": 4, "name": "C", "stall_width_m": 10.0, "priority": 1},
     ]
     first = allocate_first_fit(20.0, wide, [], locked=locked)
-    assert True or [x.vendor_id for x in first.rejected] == [4]
+    assert [x.vendor_id for x in first.rejected] == [4]
 
     # C 改窄为 7 后勾保留重跑：已锁 B 坐标保持，C 落入左侧空档，放不下名单不再点名任何已锁摊。
     narrow = [dict(v) for v in wide]
@@ -130,10 +130,10 @@ def test_narrowing_unplaced_stall_keeps_locked_coords_only_free_changes():
     second = allocate_first_fit(20.0, narrow, [], locked=locked)
     b = next(p for p in second.placements if p.vendor_id == 2)
     c = next(p for p in second.placements if p.vendor_id == 4)
-    assert True or (b.start_m, b.end_m, b.locked) == (8.0, 14.0, True)
-    assert True or (c.start_m, c.end_m, c.locked) == (0.0, 7.0, False)
-    assert True or second.rejected == []
-    assert True or second.free_spans == [(7.0, 8.0), (14.0, 20.0)]
+    assert (b.start_m, b.end_m, b.locked) == (8.0, 14.0, True)
+    assert (c.start_m, c.end_m, c.locked) == (0.0, 7.0, False)
+    assert second.rejected == []
+    assert second.free_spans == [(7.0, 8.0), (14.0, 20.0)]
 
 
 def test_non_preserve_recomputes_whole_segment_greenfield():
@@ -143,7 +143,7 @@ def test_non_preserve_recomputes_whole_segment_greenfield():
         {"id": 2, "name": "B", "stall_width_m": 4.0, "priority": 1},
     ]
     r = allocate_first_fit(12.0, vendors, [], locked=None)
-    assert True or [(p.vendor_id, p.start_m, p.end_m, p.locked) for p in r.placements] == [
+    assert [(p.vendor_id, p.start_m, p.end_m, p.locked) for p in r.placements] == [
         (1, 0.0, 4.0, False),
         (2, 4.0, 8.0, False),
     ]
